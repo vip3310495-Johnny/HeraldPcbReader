@@ -18,7 +18,7 @@ using SkiaSharp.Views.WPF;
 namespace AdApp.Views;
 
 /// <summary>PCB document view: 2D canvas (Skia) + 3D (Helix), AD-like Active Bar, info card and layer tabs.</summary>
-public sealed class PcbView : Grid
+public sealed partial class PcbView : Grid
 {
     public readonly DocItem Doc;
     public readonly PcbScene Scene;
@@ -133,6 +133,8 @@ public sealed class PcbView : Grid
         public const string Select = "M4,1.8 V13 L6.9,10.4 L9,14.6 L10.9,13.7 L8.8,9.6 L12.6,9.4 Z";
         public const string Measure = "M1.8,10.6 L10.6,1.8 L14.2,5.4 L5.4,14.2 Z M4.4,8 L5.9,9.5 M6.4,6 L8.6,8.2 M8.4,4 L9.9,5.5";
         public const string Filter = "M1.8,2.5 H14.2 L9.4,8.3 V13.6 L6.6,12.2 V8.3 Z";
+        // a hand pointing up-left, the index finger out
+        public const string Finger = "M5.2,1.6 L9.8,6.2 L11.9,5.8 L13.6,7.5 L14.4,9.4 L13.4,13.4 L10.6,14.6 L6.4,13.2 L3.4,9.6 L4.6,8.6 L6.4,9.6 L7,8.8 L3.2,5 Z";
         public const string Display = "M8,1.8 L14.3,5 L8,8.2 L1.7,5 Z M1.7,8.1 L8,11.3 L14.3,8.1 M1.7,11.2 L8,14.4 L14.3,11.2";
     }
     void BuildBar()
@@ -154,6 +156,7 @@ public sealed class PcbView : Grid
         void Sep() => _bar.Children.Add(new Border { Width = 1, Margin = new Thickness(5, 3, 5, 3), Background = B(0x55, 0x55, 0x5A) });
         T("select", "選取", "選取工具 (Esc)", () => SetTool("select"), BarIcons.Select);
         T("measure", "量測", "量測距離 (M)：Shift 鎖定 0°/45°/90°，Ctrl 吸附銅箔邊緣", () => SetTool("measure"), BarIcons.Measure);
+        T("finger", "指示", "指示標記 (P)：游標變成手指，左鍵在板上留下同方向的手指標記，空白鍵轉 45°，Esc 清除全部；縮成全圖也看得清楚", () => SetTool(Tool == "finger" ? "select" : "finger"), BarIcons.Finger);
         T("filter", "篩選", "選取篩選：決定點擊或框選時可以選到哪些物件", ShowFilterPopup, BarIcons.Filter);
         Sep();
         T("2d", "2D", "2D 檢視 (2)", () => Set3D(false));
@@ -175,7 +178,7 @@ public sealed class PcbView : Grid
 
     void SyncBar()
     {
-        _barBtn["select"].IsChecked = Tool == "select"; _barBtn["measure"].IsChecked = Tool == "measure";
+        _barBtn["select"].IsChecked = Tool == "select"; _barBtn["measure"].IsChecked = Tool == "measure"; _barBtn["finger"].IsChecked = Tool == "finger";
         _barBtn["2d"].IsChecked = !St.Mode3D; _barBtn["3d"].IsChecked = St.Mode3D;
         _barBtn["flip"].IsChecked = St.BottomView; _barBtn["mx"].IsChecked = St.Mx < 0; _barBtn["my"].IsChecked = St.My < 0; _barBtn["rot"].IsChecked = St.Rot != 0;
         _barBtn["single"].IsChecked = St.Single; _barBtn["nets"].IsChecked = St.ShowNetNames;
@@ -184,7 +187,7 @@ public sealed class PcbView : Grid
         _barBtn["filter"].IsChecked = _filterPop?.IsOpen == true || on < Filters.Length;
         _barIcon["filter"].Text.Text = on < Filters.Length ? $"篩選 {on}/{Filters.Length}" : "篩選";
         _barBtn["clear"].IsEnabled = St.HlNets.Count + St.HlComps.Count > 0;
-        foreach (var k in new[] { "select", "measure", "filter", "flip", "mx", "my", "rot", "single", "nets", "disp" }) _barBtn[k].IsEnabled = !St.Mode3D || k is "flip";
+        foreach (var k in new[] { "select", "measure", "finger", "filter", "flip", "mx", "my", "rot", "single", "nets", "disp" }) _barBtn[k].IsEnabled = !St.Mode3D || k is "flip";
         foreach (var (k, (ic, _)) in _barIcon)
         {
             var b = _barBtn[k];
@@ -270,7 +273,9 @@ public sealed class PcbView : Grid
 
     public void SetTool(string t)
     {
+        bool wasFinger = Tool == "finger";
         Tool = t; var m = St.Meas; m.A = m.B = m.Live = m.Snap = null; m.SnapInfo = m.AInfo = m.BInfo = null; m.Ortho = false;
+        if (wasFinger || t == "finger") FingerToolChanged(t == "finger");
         SetMeasCursor(false); SyncBar(); Redraw(); RefreshCard();
     }
 
@@ -409,10 +414,12 @@ public sealed class PcbView : Grid
         c.Save(); c.Scale(_dpi);
         if (St.ShowNetNames || St.ShowPadNumbers) PcbRenderer.DrawNetLabels(c, Scene, St, W, H);
         DrawMarquee(c);
+        DrawFingers(c);
         // (not while dragging to pan: those frames are replaced right away; the next measure move paints in full)
         if (keep && !_canvas.IsMouseCaptured) { c.Flush(); _frame?.Dispose(); _frame = e.Surface.Snapshot(); _frameStale = false; }
         PcbRenderer.DrawMeasure(c, St, W, H);
         c.Restore();
+        SyncFingerFx();
     }
 
     /// <summary>Tile pixel → device pixel, computed in double so deep zoom stays exact.</summary>
@@ -488,7 +495,7 @@ public sealed class PcbView : Grid
         St.Mode3D = on;
         if (on)
         {
-            if (Tool == "measure") SetTool("select");
+            if (Tool is "measure" or "finger") SetTool("select");
             _view3 ??= new Pcb3DView(this);
             if (!_content.Children.Contains(_view3)) _content.Children.Add(_view3);
             _view3.Visibility = Visibility.Visible; _canvas.Visibility = Visibility.Collapsed;
@@ -497,7 +504,7 @@ public sealed class PcbView : Grid
         else { if (_view3 != null) _view3.Visibility = Visibility.Collapsed; _canvas.Visibility = Visibility.Visible; Invalidate(); }
         _card.Margin = new Thickness(12, 58, on ? 86 : 12, 12);
         _tabsHost.Visibility = on ? Visibility.Collapsed : Visibility.Visible;   // layers mean nothing in 3D
-        SyncBar(); RefreshCard();
+        SyncBar(); RefreshCard(); SyncFingerFx();
     }
     public Pcb3DView View3 => _view3;
 
@@ -608,7 +615,9 @@ public sealed class PcbView : Grid
     {
         Focus();
         _down = _start = e.GetPosition(_canvas); _btn = e.ChangedButton; _moved = false; _mq = null; _mods = Keyboard.Modifiers;
-        _pan = e.ChangedButton is MouseButton.Right or MouseButton.Middle || Keyboard.IsKeyDown(Key.Space);
+        // pan: right or middle drag (and a left drag with the finger tool); holding Space no longer pans (2.9.3: it was
+        // easy to set off by mistake)
+        _pan = e.ChangedButton is MouseButton.Right or MouseButton.Middle || (Tool == "finger" && e.ChangedButton == MouseButton.Left);
         _canvas.CaptureMouse();
         if (e.ClickCount == 2 && e.ChangedButton == MouseButton.Left && Tool == "select")
         {
@@ -648,7 +657,8 @@ public sealed class PcbView : Grid
         if (_mq is { } q) { _mq = null; AreaSelect(_start, q, mods); e.Handled = true; return; }
         var p = e.GetPosition(_canvas);
         var (wx, wy) = St.ToWorld(p.X, p.Y, W, H);
-        if (!_moved && e.ChangedButton == MouseButton.Left && !_pan)
+        if (!_moved && e.ChangedButton == MouseButton.Left && Tool == "finger") FingerClick(p, mods);
+        else if (!_moved && e.ChangedButton == MouseButton.Left && !_pan)
         {
             if (Tool == "measure") MeasClick(wx, wy, mods);
             else ClickAt(p, mods);
@@ -767,7 +777,7 @@ public sealed class PcbView : Grid
     void SetMeasCursor(bool onCenter)
     {
         _centerCursor = onCenter && Tool == "measure";
-        _canvas.Cursor = Tool != "measure" ? null : _centerCursor ? CenterCursor.Value : Cursors.Cross;
+        _canvas.Cursor = Tool == "finger" ? FingerCursor() : Tool != "measure" ? null : _centerCursor ? CenterCursor.Value : Cursors.Cross;
     }
 
     /// <summary>Crosshair with a ring, shown while the measure tool sits on a pad / via centre.</summary>
@@ -810,6 +820,7 @@ public sealed class PcbView : Grid
         I("縮放到所選", ZoomToSelection, St.Sel != null);
         I("縮放到點亮物件", ZoomToHighlight, Scene.HlBounds != null);
         I("清除點亮", ClearHighlight, St.HlNets.Count + St.HlComps.Count > 0);
+        if (_fingers.Count > 0) I($"清除指示標記（{_fingers.Count} 個）", ClearFingers);
         m.Items.Add(new Separator());
         I("全圖 (F)", Fit);
         I(St.BottomView ? "回到頂面 (B)" : "翻到底面 (B)", () => SetBottomView(!St.BottomView));
@@ -824,6 +835,11 @@ public sealed class PcbView : Grid
         if (key is Key.LeftShift or Key.RightShift or Key.LeftCtrl or Key.RightCtrl) { MeasModsChanged(); return; }
         switch (key)
         {
+            case Key.Space when Tool == "finger" && !St.Mode3D: if (!e.IsRepeat) FingerRotate(); break;
+            case Key.Escape when Tool == "finger":
+                if (_fingers.Count > 0) ClearFingers(); else SetTool("select");
+                break;
+            case Key.P when !St.Mode3D && mod == ModifierKeys.None: SetTool(Tool == "finger" ? "select" : "finger"); break;
             case Key.Escape:
                 if (Tool == "measure" && St.Meas.A != null) { St.Meas.A = St.Meas.B = St.Meas.Live = null; Redraw(); RefreshCard(); }
                 else if (Tool == "measure") SetTool("select");

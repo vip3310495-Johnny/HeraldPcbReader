@@ -45,6 +45,8 @@ public sealed class Settings
     public bool ProbeLightPart { get; set; }
     /// <summary>匯出 PDF: open the file when it is written.</summary>
     public bool PdfOpenAfter { get; set; } = true;
+    /// <summary>指示 (point finger): size of the hands and the cursor, 0.1–3 (10–300 %).</summary>
+    public double FingerScale { get; set; } = 1.0;
     /// <summary>PCB selection filter (class names); null = everything.</summary>
     public List<string> PickFilter { get; set; }
 

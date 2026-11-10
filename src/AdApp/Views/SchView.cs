@@ -431,7 +431,7 @@ public sealed class SchView : Grid
     {
         Focus();
         _down = e.GetPosition(this); _btn = e.ChangedButton; _moved = false; _dox = _ox; _doy = _oy;
-        _panning = e.ChangedButton is MouseButton.Right or MouseButton.Middle || Keyboard.IsKeyDown(Key.Space);
+        _panning = e.ChangedButton is MouseButton.Right or MouseButton.Middle;   // holding Space no longer pans (2.9.3)
         _netMod = (Keyboard.Modifiers & (ModifierKeys.Alt | ModifierKeys.Control)) != 0;
         CaptureMouse();
         if (e.ChangedButton == MouseButton.Left && e.ClickCount == 1) NoteDown();

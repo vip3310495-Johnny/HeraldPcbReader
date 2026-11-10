@@ -347,6 +347,23 @@ static class Automation
                             if (q["focus"] is string fd && v3.Doc.Pcb.FindComp(fd) is int fi && fi >= 0 && v3.Scene.CompBox(fi) is { } fb) p3.FocusOn(fb);
                         }
                         break;
+                    case "finger":   // doc, op=on|off|add|rot|clear|scale|png, x/y (view DIP) for add, mods=ctrl, v for scale, path/angle/size for png
+                        {
+                            if (q["op"] == "png") { Views.PcbView.SaveFingerCursorPng(q["path"], double.Parse(q["angle"] ?? "-45", System.Globalization.CultureInfo.InvariantCulture), double.Parse(q["size"] ?? "46", System.Globalization.CultureInfo.InvariantCulture)); break; }
+                            var fv = w.ViewOf(w.DocsOpen.Keys.First(d => d.Name.Equals(q["doc"], StringComparison.OrdinalIgnoreCase))) as PcbView;
+                            if (fv == null) break;
+                            switch (q["op"])
+                            {
+                                case "on": fv.SetTool("finger"); break;
+                                case "off": fv.SetTool("select"); break;
+                                case "add": fv.FingerAtView(new Point(double.Parse(q["x"], System.Globalization.CultureInfo.InvariantCulture), double.Parse(q["y"], System.Globalization.CultureInfo.InvariantCulture)), q["mods"] == "ctrl" ? System.Windows.Input.ModifierKeys.Control : System.Windows.Input.ModifierKeys.None); break;
+                                case "rot": fv.FingerRotateForTest(); break;
+                                case "key": fv.KeyForTest(Enum.Parse<System.Windows.Input.Key>(q["k"])); break;
+                                case "clear": fv.ClearFingers(); break;
+                                case "scale": fv.SetFingerScale(double.Parse(q["v"], System.Globalization.CultureInfo.InvariantCulture)); break;
+                            }
+                            return JsonSerializer.Serialize(new { count = fv.FingerCount, angle = fv.FingerAngle, tool = fv.Tool, scale = Settings.Current.FingerScale, pulse = fv.PulseInfo });
+                        }
                     case "usestep": Views.Pcb3DOptions.UseStepModels = q["on"] != "0"; break;
                     case "step3d":   // the STEP models of doc: read time, counts, and the memory the process uses
                         {
