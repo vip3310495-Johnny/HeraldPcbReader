@@ -1,0 +1,80 @@
+﻿<Window x:Class="AdApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ad="https://github.com/Dirkster99/AvalonDock"
+        Title="Herald PCB Reader" Width="1600" Height="980" MinWidth="760" MinHeight="480"
+        Background="{StaticResource Bg1}" Foreground="{StaticResource TextB}" AllowDrop="True"
+        FontFamily="Segoe UI, Microsoft JhengHei UI" FontSize="12.5" UseLayoutRounding="True">
+    <!-- no Icon on the window: without one WPF takes the program's own icon (ApplicationIcon in the exe), which saves decoding app.ico at start-up -->
+    <DockPanel>
+        <Menu x:Name="MainMenu" DockPanel.Dock="Top" Padding="2,1"/>
+        <Border DockPanel.Dock="Top" Background="{StaticResource Bg1}" BorderBrush="{StaticResource BorderB}" BorderThickness="0,0,0,1" Padding="4,3">
+            <DockPanel>
+                <StackPanel x:Name="ToolRight" DockPanel.Dock="Right" Orientation="Horizontal"/>
+                <StackPanel x:Name="ToolLeft" Orientation="Horizontal"/>
+            </DockPanel>
+        </Border>
+        <StatusBar DockPanel.Dock="Bottom" Padding="4,0">
+            <StatusBarItem><TextBlock x:Name="StatusText" Text="就緒" TextTrimming="CharacterEllipsis"/></StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="StatusProbe" Margin="0,0,18,0" Foreground="#FF5CA8"/>
+                    <TextBlock x:Name="StatusXY" MinWidth="200" FontFamily="Consolas" Margin="0,0,14,0"/>
+                    <Border x:Name="UnitSwitch" BorderBrush="{StaticResource BorderB}" BorderThickness="1" CornerRadius="2" Margin="0,1,2,1" VerticalAlignment="Center"/>
+                </StackPanel>
+            </StatusBarItem>
+        </StatusBar>
+        <Grid>
+        <ad:DockingManager x:Name="Dock" AllowMixedOrientation="True">
+            <ad:DockingManager.Theme>
+                <ad:Vs2013DarkTheme/>
+            </ad:DockingManager.Theme>
+            <!-- schematic tabs yellow, PCB tabs green, black text: tell the two kinds apart at a glance;
+                 a blue frame marks a sheet the highlighted net continues to -->
+            <ad:DockingManager.DocumentHeaderTemplate>
+                <!-- AD19-style: the tabs touch, a 1 px line between them (MainWindow.StyleDocTab takes away the gaps of
+                     the theme and puts the ✕ over the tab's right end); tabs not in front a little dimmer -->
+                <DataTemplate>
+                    <Border Loaded="DocHeader_Loaded" CornerRadius="2,2,0,0" Padding="6,0,8,0" Margin="0,0,1,0" BorderThickness="1.5" Background="{Binding Content.TabBrush}" BorderBrush="{Binding Content.TabBorder}">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSelected}" Value="False"><Setter Property="Opacity" Value="0.8"/></DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock Text="{Binding Title}" Foreground="Black" FontWeight="SemiBold" FontSize="12" Margin="0,1,0,1" VerticalAlignment="Center"/>
+                    </Border>
+                </DataTemplate>
+            </ad:DockingManager.DocumentHeaderTemplate>
+            <ad:LayoutRoot>
+                <ad:LayoutPanel Orientation="Horizontal">
+                    <ad:LayoutAnchorablePaneGroup DockWidth="300" Orientation="Vertical">
+                        <ad:LayoutAnchorablePane DockHeight="3*">
+                            <ad:LayoutAnchorable x:Name="ProjectsAnch" Title="Projects" ContentId="projects" CanClose="False" CanHide="True"/>
+                            <ad:LayoutAnchorable x:Name="NavAnch" Title="Navigator" ContentId="navigator" CanClose="False" CanHide="True"/>
+                        </ad:LayoutAnchorablePane>
+                    </ad:LayoutAnchorablePaneGroup>
+                    <ad:LayoutDocumentPaneGroup x:Name="DocGroup" Orientation="Horizontal">
+                        <ad:LayoutDocumentPane x:Name="MainPane"/>
+                    </ad:LayoutDocumentPaneGroup>
+                    <ad:LayoutAnchorablePaneGroup DockWidth="320" Orientation="Vertical">
+                        <ad:LayoutAnchorablePane>
+                            <ad:LayoutAnchorable x:Name="PropAnch" Title="Properties" ContentId="properties" CanClose="False" CanHide="True"/>
+                        </ad:LayoutAnchorablePane>
+                    </ad:LayoutAnchorablePaneGroup>
+                </ad:LayoutPanel>
+                <ad:LayoutRoot.BottomSide>
+                    <ad:LayoutAnchorSide>
+                        <ad:LayoutAnchorGroup>
+                            <ad:LayoutAnchorable x:Name="MsgAnch" Title="Messages" ContentId="messages" CanClose="False" AutoHideHeight="180"/>
+                        </ad:LayoutAnchorGroup>
+                    </ad:LayoutAnchorSide>
+                </ad:LayoutRoot.BottomSide>
+            </ad:LayoutRoot>
+        </ad:DockingManager>
+        <!-- an auto-hide flyout sliding back into its side bar (AutoHideFlyout) -->
+        <Canvas x:Name="FlyoutFx" IsHitTestVisible="False" ClipToBounds="True"/>
+        </Grid>
+    </DockPanel>
+</Window>

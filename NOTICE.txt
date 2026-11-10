@@ -1,0 +1,47 @@
+﻿Herald PCB Reader — 授權聲明 / Licence notice
+==============================================
+
+Herald PCB Reader — a viewer for Altium Designer schematics and PCBs (also KiCad and EAGLE schematics)
+Copyright (C) 2026 Johnny.ch.Tsai
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General
+Public License as published by the Free Software Foundation, version 3 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License along with this program (LICENSE.txt, in the
+same folder). If not, see <https://www.gnu.org/licenses/>.
+
+
+Additional permission under GNU GPL version 3 section 7
+-------------------------------------------------------
+
+If you modify this Program, or any covered work, by linking or combining it with AvalonDock
+(Dirkster.AvalonDock and Dirkster.AvalonDock.Themes.VS2013, or a modified version of those libraries),
+containing parts covered by the terms of the Microsoft Public License (Ms-PL), the licensors of this Program
+grant you additional permission to convey the resulting work.
+
+
+Source code
+-----------
+
+Every release zip contains the complete source code of that version (HeraldPcbReader_v<version>_source.zip):
+the program, the build and installer scripts and the test tools. The source code is also published at
+https://github.com/vip3310495-Johnny/HeraldPcbReader. The licences of the third-party components the program
+is built from are in THIRD-PARTY-NOTICES.txt.
+
+
+中文說明（僅供參考，以上方英文與 GNU GPL 原文為準）
+----------------------------------------------------
+
+- Herald PCB Reader 的著作權屬於 Johnny.ch.Tsai，以 GNU 通用公共授權條款第 3 版（GPL-3.0）發佈：
+  可以自由使用、複製、修改與散布；散布本程式或修改後的版本時，必須同樣以 GPL-3.0 提供，
+  並讓收到的人可以取得完整的原始碼。
+- 本程式「不提供任何擔保」，包括可售性或特定用途適用性的默示擔保。
+- 介面用的 AvalonDock 是 Microsoft Public License（Ms-PL）授權，自由軟體基金會認為它和 GPL 不相容；
+  所以著作權人依 GPL 第 7 條另外允許：本程式與 AvalonDock 結合後的作品，可以照常散布。
+- 每個版本的發行 zip 都附上該版本完整的原始碼，也公開在 https://github.com/vip3310495-Johnny/HeraldPcbReader；
+  第三方元件的授權在 THIRD-PARTY-NOTICES.txt。
+- GPL-3.0 全文：LICENSE.txt（程式裡：說明 → GPL-3.0 全文）。

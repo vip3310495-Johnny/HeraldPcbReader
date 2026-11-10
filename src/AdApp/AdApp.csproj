@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>HeraldPcbReader</AssemblyName>
+    <RootNamespace>AdApp</RootNamespace>
+    <Product>Herald PCB Reader</Product>
+    <AssemblyTitle>Herald PCB Reader</AssemblyTitle>
+    <Version>2.9.1</Version>
+    <Authors>Johnny.ch.Tsai</Authors>
+    <Copyright>Copyright © 2026 Johnny.ch.Tsai · GNU GPL v3</Copyright>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <!-- the release publish (PublishSingleFile + PublishReadyToRun) precompiles the program and the whole .NET runtime
+         together into one image (HeraldPcbReader.r2r.dll inside the exe). The SDK already does this by default for a
+         single-file ReadyToRun publish (.NET 7 and later), so releases have been built this way since 2.7.2; it is set
+         here so a later SDK cannot drop it unnoticed. Compared with plain ReadyToRun (folder builds, 2.8.1): about 5 %
+         faster start, 6-16 % on 4 cores, half the background JIT, about 17 MB more on disk. A folder publish without
+         PublishSingleFile now gets it too. Delete obj\Release\net10.0-windows\win-x64\R2R before a publish after one
+         made with other ReadyToRun settings: stale composite pieces left there make the program fail at start-up. -->
+    <PublishReadyToRunComposite>true</PublishReadyToRunComposite>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AdCore\AdCore.csproj" />
+  </ItemGroup>
+
+  <!-- the .NET runtime packed into the self-contained program is the latest .NET 10 security patch (10.0.14,
+       2026-10-25), not the older one the SDK on the build PC may know about. Raise it with each .NET 10 patch
+       (and run tools/notices.ps1 again). .NET 10 is an LTS release, supported until 2028-11-14. -->
+  <ItemGroup>
+    <KnownFrameworkReference Update="Microsoft.NETCore.App" LatestRuntimeFrameworkVersion="10.0.14" />
+    <KnownFrameworkReference Update="Microsoft.WindowsDesktop.App" LatestRuntimeFrameworkVersion="10.0.14" />
+    <KnownFrameworkReference Update="Microsoft.WindowsDesktop.App.WPF" LatestRuntimeFrameworkVersion="10.0.14" />
+    <KnownFrameworkReference Update="Microsoft.WindowsDesktop.App.WindowsForms" LatestRuntimeFrameworkVersion="10.0.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dirkster.AvalonDock.Themes.VS2013" Version="4.72.1" />
+    <PackageReference Include="HelixToolkit.Wpf" Version="2.25.0" NoWarn="NU1701" />
+    <PackageReference Include="SkiaSharp.Views.WPF" Version="2.88.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- the user guide (說明 → 使用說明, F1), written out and opened in the browser by HelpDoc -->
+    <EmbeddedResource Include="Help\**\*" LogicalName="Help/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- the program's licence (GNU GPL v3, LICENSE.txt) and its notice with the AvalonDock permission (NOTICE.txt),
+         kept once at the repository root; written out with the guide (說明 → 授權條款 / GPL-3.0 全文) -->
+    <EmbeddedResource Include="..\..\LICENSE.txt" LogicalName="Help/LICENSE.txt" />
+    <EmbeddedResource Include="..\..\NOTICE.txt" LogicalName="Help/NOTICE.txt" />
+  </ItemGroup>
+
+</Project>

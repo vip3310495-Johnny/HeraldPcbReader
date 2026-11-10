@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Herald PCB Reader 使用說明</title>
+<style>
+  :root {
+    --bg: #f6f7fa; --surface: #ffffff; --surface-2: #eef1f6; --line: #dde2ea;
+    --text: #1d2330; --muted: #5b6475; --head: #13203f; --link: #2f6fd6;
+    --accent: #c9821d; --accent-soft: #fff3dc; --sch: #f2c94c; --pcb: #4cb85a; --prj: #4d8ee0;
+    --kbd-bg: #ffffff; --kbd-line: #c4cad6; --note: #eaf2ff; --note-line: #9cc0f5; --warn: #fff4e0; --warn-line: #f0c27a;
+    --hero-1: #0a122e; --hero-2: #26306b; --hero-3: #6b3f86; --hero-4: #e7845c;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15171c; --surface: #1d2027; --surface-2: #252932; --line: #333845;
+      --text: #e3e6ec; --muted: #9aa3b4; --head: #f1f3f8; --link: #7db9f7;
+      --accent: #f0b453; --accent-soft: #3a2f1c; --kbd-bg: #2a2e38; --kbd-line: #474d5c;
+      --note: #1c2840; --note-line: #3d5f94; --warn: #3a2e1a; --warn-line: #8a6a32;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.75 "Microsoft JhengHei UI", "Microsoft JhengHei", "Segoe UI", "Noto Sans TC", sans-serif;
+  }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .hero {
+    background: linear-gradient(180deg, var(--hero-1) 0%, var(--hero-2) 45%, var(--hero-3) 80%, var(--hero-4) 100%);
+    color: #fff; padding: 36px 24px 30px;
+  }
+  .hero-in { max-width: 1180px; margin: 0 auto; display: flex; gap: 22px; align-items: center; }
+  .hero img { width: 88px; height: 88px; flex: none; filter: drop-shadow(0 6px 14px rgba(0,0,0,.35)); }
+  .hero h1 { margin: 0; font-size: 30px; line-height: 1.3; letter-spacing: .5px; }
+  .hero p { margin: 6px 0 0; color: #e8e2f2; font-size: 15.5px; }
+  .hero .ver { display: inline-block; margin-top: 10px; padding: 1px 10px; border: 1px solid rgba(255,230,170,.6); border-radius: 999px; color: #ffe6aa; font-size: 13px; }
+
+  .layout { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: 34px; padding: 26px 24px 80px; }
+  nav.toc { position: sticky; top: 16px; align-self: start; max-height: calc(100vh - 32px); overflow: auto; font-size: 14.5px; }
+  nav.toc .t { font-weight: 700; color: var(--muted); font-size: 12.5px; letter-spacing: 1px; margin: 0 0 6px 10px; }
+  nav.toc a { display: block; padding: 4px 10px; border-left: 3px solid transparent; color: var(--text); border-radius: 0 6px 6px 0; }
+  nav.toc a:hover { background: var(--surface-2); text-decoration: none; }
+  nav.toc a.on { border-left-color: var(--accent); background: var(--accent-soft); font-weight: 700; }
+
+  main section { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 22px 28px 14px; margin-bottom: 22px; }
+  h2 { font-size: 23px; color: var(--head); margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--line); display: flex; align-items: center; gap: 10px; }
+  h2 .n { flex: none; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 15px; color: #fff; background: linear-gradient(160deg, #26306b, #e7845c); }
+  h3 { font-size: 18px; color: var(--head); margin: 20px 0 6px; }
+  p { margin: 8px 0; }
+  ul, ol { margin: 6px 0 10px; padding-left: 24px; }
+  li { margin: 3px 0; }
+  b, strong { color: var(--head); }
+  kbd {
+    font: 600 13px/1 "Segoe UI", Consolas, monospace; padding: 3px 7px; border-radius: 5px; white-space: nowrap;
+    background: var(--kbd-bg); border: 1px solid var(--kbd-line); border-bottom-width: 2px; color: var(--text);
+  }
+  code { font: 14px Consolas, monospace; background: var(--surface-2); padding: 1px 6px; border-radius: 4px; overflow-wrap: anywhere; }
+  .tag { display: inline-block; padding: 0 7px; border-radius: 4px; font-size: 13px; font-weight: 700; color: #141414; }
+  .tag.sch { background: var(--sch); } .tag.pcb { background: var(--pcb); color: #fff; } .tag.prj { background: var(--prj); color: #fff; }
+  .tag.cur { background: #3d9bff; color: #0b1622; border: 1.5px solid #d6eaff; }
+  .tag.jump { background: transparent; color: var(--link); border: 1.5px solid #3d9bff; }
+
+  figure { margin: 14px 0 18px; }
+  figure img { display: block; width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); box-shadow: 0 6px 20px rgba(10, 18, 46, .14); cursor: zoom-in; }
+  figcaption { color: var(--muted); font-size: 14px; margin-top: 8px; }
+
+  .note, .warn { border-left: 4px solid var(--note-line); background: var(--note); padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+  .warn { border-left-color: var(--warn-line); background: var(--warn); }
+  .steps { counter-reset: s; list-style: none; padding-left: 0; }
+  .steps li { counter-increment: s; position: relative; padding-left: 40px; margin: 10px 0; }
+  .steps li::before { content: counter(s); position: absolute; left: 0; top: 2px; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; display: grid; place-items: center; font-size: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 14px; font-size: 15px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 700; font-size: 13.5px; background: var(--surface-2); }
+  td:first-child { white-space: nowrap; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin: 10px 0; }
+  .card { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: var(--surface-2); }
+  .card h4 { margin: 0 0 4px; font-size: 15.5px; color: var(--head); }
+  .card p { margin: 0; font-size: 14.5px; color: var(--muted); }
+
+  .lightbox { position: fixed; inset: 0; background: rgba(5, 8, 20, .88); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 10; cursor: zoom-out; }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-width: 100%; max-height: 100%; border-radius: 6px; }
+  footer { color: var(--muted); font-size: 13.5px; text-align: center; padding: 10px 0 0; }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: minmax(0, 1fr); padding: 16px 16px 60px; gap: 16px; }
+    nav.toc { position: static; max-height: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 6px; columns: 2; }
+    main section { padding: 18px 16px 10px; }
+    .hero { padding: 26px 16px 22px; }
+    .hero img { width: 64px; height: 64px; }
+    .hero h1 { font-size: 24px; }
+    td:first-child { white-space: normal; }
+  }
+  @media print { nav.toc, .lightbox { display: none !important; } .layout { display: block; } main section { break-inside: avoid; } }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-in">
+    <img src="img/app.png" alt="">
+    <div>
+      <h1>Herald PCB Reader 使用說明</h1>
+      <p>Altium Designer 專案、電路圖與 PCB 的檢視器：電路圖 ⇄ PCB 雙向 Cross Probe、網路點亮、量測與 3D。</p>
+      <span class="ver">版本 {{VERSION}}</span>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="目錄">
+    <div class="t">目錄</div>
+    <a href="#start">快速上手</a>
+    <a href="#open">開啟檔案</a>
+    <a href="#ui">介面導覽</a>
+    <a href="#panels">面板與自動隱藏</a>
+    <a href="#sch">電路圖</a>
+    <a href="#net">Alt＋點選網路</a>
+    <a href="#pcb">PCB 2D</a>
+    <a href="#pcb3d">PCB 3D</a>
+    <a href="#probe">Cross Probe</a>
+    <a href="#groups">專案與群組</a>
+    <a href="#search">搜尋與 Navigator</a>
+    <a href="#pdf">匯出 PDF</a>
+    <a href="#settings">設定</a>
+    <a href="#keys">快捷鍵</a>
+    <a href="#install">安裝與疑難排解</a>
+    <a href="#legal">資安、授權與商標</a>
+  </nav>
+
+  <main>
+    <section id="start">
+      <h2><span class="n">1</span>快速上手</h2>
+      <p>Herald PCB Reader 讀取 Altium Designer 的 <code>.PrjPcb</code>、<code>.SchDoc</code>、<code>.PcbDoc</code>，也能開 KiCad（<code>.kicad_sch</code>、舊版 <code>.sch</code>）與 Eagle（XML <code>.sch</code>）電路圖。全部功能都在本機執行，不需要網路，也不需要安裝 Altium Designer。</p>
+      <ol class="steps">
+        <li><b>開啟專案</b>：在檔案總管雙擊 <code>.PrjPcb</code>，或在程式裡按 <kbd>Ctrl</kbd>+<kbd>O</kbd>。專案的電路圖與 PCB 會一起載入。</li>
+        <li><b>點電路圖上的零件</b>：PCB 會選取同一顆零件並放大；反過來點 PCB 上的零件，電路圖會切到它所在的圖紙。</li>
+        <li><b>按住 <kbd>Alt</kbd> 點電路圖上的網路</b>：同一個網路在其他圖紙與 PCB 上一起點亮，上方列出網路經過的所有頁面。</li>
+        <li><b>按 <kbd>F12</kbd></b> 進入分割檢視：左邊電路圖、右邊 PCB，兩邊同時看。</li>
+      </ol>
+      <div class="note">任何時候按 <kbd>F1</kbd>（或 說明 → 使用說明）都能打開這份說明。</div>
+    </section>
+
+    <section id="open">
+      <h2><span class="n">2</span>開啟檔案</h2>
+      <ul>
+        <li><b>檔案 → 開啟專案 / 檔案…</b>（<kbd>Ctrl</kbd>+<kbd>O</kbd>）：可一次選多個檔案。</li>
+        <li><b>檔案 → 開啟資料夾…</b>（<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd>）：開啟資料夾裡的專案與檔案。</li>
+        <li><b>拖放</b>：把檔案或資料夾拖進視窗。</li>
+        <li><b>雙擊</b>：安裝後 <code>.SchDoc</code> / <code>.PcbDoc</code> / <code>.PrjPcb</code> 預設用本程式開啟。雙擊單一 SchDoc 或 PcbDoc 時，如果同資料夾有列出它的 <code>.PrjPcb</code>，會把整個專案一起開。</li>
+        <li><b>檔案 → 最近開啟</b>：最近用過的檔案與專案。</li>
+        <li><b>檔案 → 重新載入全部檔案</b>：檔案在 Altium 裡改過、存檔後，用這個重新讀取。</li>
+      </ul>
+      <h3>下次開啟時恢復工作階段</h3>
+      <p>關閉程式時會記下開著的分頁（順序、分割檢視、兩邊顯示中的分頁與作用中的分頁），下次開啟時原樣恢復，不會把專案裡每個檔案都打開。其他檔案照樣列在 Projects 面板，點兩下即可開啟。自訂群組、加進專案的檔案、面板的寬度與自動隱藏狀態也都會記住。</p>
+      <p>程式一啟動就在背景開始讀取上次的檔案（或雙擊開啟的檔案），和建立視窗同時進行，所以重新開啟時分頁很快就回來，不需要另外的快取。</p>
+    </section>
+
+    <section id="ui">
+      <h2><span class="n">3</span>介面導覽</h2>
+      <figure>
+        <img src="img/split.png" alt="分割檢視：左邊電路圖、右邊 PCB，右側 Properties 面板">
+        <figcaption>分割檢視（<kbd>F12</kbd>）：在電路圖上點了 IC1，右邊的 PCB 自動選取並放大到 IC1；Properties 顯示零件資料，Projects 設成自動隱藏，收在左側。（截圖中的電路圖與板子內容已模糊處理，見<a href="#legal">第 16 節</a>。）</figcaption>
+      </figure>
+      <div class="grid2">
+        <div class="card"><h4>選單與工具列（上方）</h4><p>分割檢視、Cross Probe 跳轉、適合視窗、清除點亮、匯出 PDF；右側是搜尋框。</p></div>
+        <div class="card"><h4>Projects（左）</h4><p>專案、自訂群組與 Free Documents；每個專案的 Source Documents 同時列出電路圖與 PCB。</p></div>
+        <div class="card"><h4>Navigator（左，另一分頁）</h4><p>目前專案的元件、網路與 BOM，可複製成 Markdown 表格。預設關閉，從 檢視 → 面板：Navigator 打開。</p></div>
+        <div class="card"><h4>文件分頁（中）</h4><p><span class="tag sch">SCH</span> 電路圖分頁是黃色、<span class="tag pcb">PCB</span> 分頁是綠色，分頁緊靠在一起（仿 AD19）；目前的分頁較亮，關閉用的 ✕ 出現在它的右端（滑鼠移到其他分頁上也會出現）。可拖曳重排或拖到另一邊。</p></div>
+        <div class="card"><h4>Properties（右）</h4><p>電路圖上選取的零件、網路或框選的零件；沒選取時顯示文件摘要。單獨看 PCB 時會自動讓開。</p></div>
+        <div class="card"><h4>Messages 與狀態列（下）</h4><p>載入與編譯訊息（預設關閉，從 檢視 → 面板：Messages 打開；有檔案開不了時會自動出現）；狀態列顯示座標、Cross Probe 結果，右下角切換 <b>mm / mil</b>（或按 <kbd>Q</kbd>）。</p></div>
+      </div>
+    </section>
+
+    <section id="panels">
+      <h2><span class="n">4</span>面板與自動隱藏</h2>
+      <ul>
+        <li>每個面板標題列的<b>圖釘</b>可切換「停靠」與「自動隱藏」。自動隱藏的面板收在視窗邊緣成為標籤，點標籤（或滑鼠停在上面）就會展開，寬度和停靠時一樣。</li>
+        <li>展開後，<b>點到面板以外的地方</b>（或滑鼠移開、面板失去焦點），面板會以約 0.4 秒的動畫收回側邊。在面板<b>裡面</b>點選（例如點 Projects 裡的檔案、按右鍵開選單）不會讓它收回；收回途中再點一次標籤可以讓它停住。</li>
+        <li>拖曳面板邊緣可調整寬度；寬度與自動隱藏狀態會在下次開啟時恢復。</li>
+        <li>關掉的面板可從 檢視 → 面板 叫回來。Navigator 與 Messages 預設是關閉的；打開或關掉哪些面板會記住，下次開啟照舊。</li>
+        <li>在電路圖上<b>雙擊零件</b>會叫出 Properties（停在電路圖，不會跳到 PCB）：如果 Properties 設成自動隱藏，雙擊後會展開並停住；這時再點別的零件，Properties 改顯示那顆零件；<b>取消選取</b>（點空白處、按 <kbd>Esc</kbd>、改點網路、換到別的電路圖）就自動收回。</li>
+      </ul>
+    </section>
+
+    <section id="sch">
+      <h2><span class="n">5</span>電路圖</h2>
+      <table>
+        <tr><th>操作</th><th>作用</th></tr>
+        <tr><td>點選</td><td>選取零件或網路（會 Cross Probe 到 PCB）。開著「Cross Probe 跳轉」且不是分割檢視時，切到 PCB 分頁會等過 Windows 的雙擊時間（約 0.5 秒）才發生，才分得出你是要點一下還是雙擊。</td></tr>
+        <tr><td>左鍵拖曳</td><td>框選零件：左→右拖曳選<b>完全在框內</b>的零件，右→左拖曳選<b>碰到框</b>的零件。</td></tr>
+        <tr><td>雙擊零件</td><td>選取並放大到這顆零件，叫出 Properties；停在電路圖，不會跳到 PCB。</td></tr>
+        <tr><td><kbd>Alt</kbd>（或 <kbd>Ctrl</kbd>）＋點選</td><td>只看這個網路：其他東西變淡，同專案其他圖紙與 PCB 一起點亮。詳見<a href="#net">下一節</a>。</td></tr>
+        <tr><td>滾輪／<kbd>PgUp</kbd> <kbd>PgDn</kbd></td><td>縮放（<kbd>Shift</kbd>＋滾輪水平捲動）。</td></tr>
+        <tr><td>右鍵或中鍵拖曳</td><td>平移。</td></tr>
+        <tr><td><kbd>F</kbd></td><td>適合視窗。</td></tr>
+        <tr><td><kbd>G</kbd></td><td>顯示／隱藏格線。</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>取消選取與「只看」。</td></tr>
+        <tr><td>右鍵（不拖曳）</td><td>選單：適合視窗、縮放到所選、只看此網路／零件、清除選取、格線。</td></tr>
+      </table>
+      <ul>
+        <li>一個檔案有多張圖紙時，下方會出現圖紙分頁。</li>
+        <li><b>檢視 → 電路圖配色</b>：Altium（檔案原色）、黑色、黑白。<b>檢視 → 電路圖字體大小</b> 或 設定 裡的「電路圖文字大小」（50–250%）調整文字大小。</li>
+        <li>Properties 會列出零件的值、封裝、元件庫、參數與每支接腳的網路；點網路名稱即可選取該網路。</li>
+      </ul>
+    </section>
+
+    <section id="net">
+      <h2><span class="n">6</span>Alt＋點選網路</h2>
+      <figure>
+        <img src="img/netpages.png" alt="Alt+點選 3V3 網路後，上方列出 7 個頁面，目前頁面反白">
+        <figcaption>按住 <kbd>Alt</kbd> 點 3V3：網路經過的 7 個頁面都列出來，目前這一頁（Controller）以藍底深色粗體反白；Properties 的「頁面」與 Projects 面板也一樣標示。</figcaption>
+      </figure>
+      <ul>
+        <li>電路圖上方的<b>網路標示列</b>顯示網路名稱、本頁接腳數、總接腳數與頁數，並列出網路經過的<b>所有頁面</b>（包含目前這一頁；一個檔案有多張圖紙時逐頁列出）。</li>
+        <li>目前的頁面以 <span class="tag cur">藍底深色粗體</span> 反白，其他頁面是 <span class="tag jump">藍框</span>。點其他頁面就切過去並標示同一個網路（沒開著的分頁會自動開啟）；點目前頁面則縮放到這個網路。</li>
+        <li>Projects 面板在含有這個網路的檔案旁標示「可跳轉」，目前的檔案標示「目前頁面」並反白。</li>
+        <li>同群組的 PCB 會點亮相同的網路。比對以接腳（位號＋腳號）為主、名稱為輔，自動命名或經 Port 改名的網路也找得到。</li>
+        <li>按 <kbd>Esc</kbd> 或標示列的「取消」結束。</li>
+      </ul>
+      <div class="note">網路在別張圖紙上但沒有相連時，Properties 會在「為什麼沒有連到其他圖紙」說明原因（例如網路標籤只在單一圖紙有效），可在 Projects 面板對專案按右鍵改「網路範圍」。</div>
+    </section>
+
+    <section id="pcb">
+      <h2><span class="n">7</span>PCB 2D</h2>
+      <figure>
+        <img src="img/pcb.png" alt="PCB 2D：GND 點亮，右上角資訊小卡列出點亮中的 NET 與所選元件">
+        <figcaption>GND 點亮（同 NET 的鋪銅一起亮起）；右上角資訊小卡顯示點亮中的 NET 與所選元件，「焊墊 → NET」的每一格都可以點。pin 腳編號與 NET 名稱可以在「顯示…」裡開啟，直接標在焊墊上。</figcaption>
+      </figure>
+      <h3>上方 Active Bar</h3>
+      <table>
+        <tr><th>按鈕</th><th>作用</th></tr>
+        <tr><td>選取</td><td>點選與框選物件。</td></tr>
+        <tr><td>量測（<kbd>M</kbd>）</td><td>點兩點量距離：吸附焊墊／導通孔中心與導線端點；<kbd>Shift</kbd> 鎖定 0°/45°/90°，<kbd>Ctrl</kbd> 吸附銅箔邊緣。</td></tr>
+        <tr><td>篩選</td><td>選擇能被點到的物件種類（元件、焊墊、導通孔、導線、圓弧、鋪銅、區域、填充、文字、禁布）；<kbd>Alt</kbd>＋點項目只選該類。</td></tr>
+        <tr><td>2D / 3D</td><td>切換 2D 與 3D（<kbd>2</kbd> / <kbd>3</kbd>）。</td></tr>
+        <tr><td>全圖、翻面、鏡射、旋轉</td><td>全圖（<kbd>F</kbd>）、翻面看底面（<kbd>B</kbd>）、左右／上下鏡射（<kbd>X</kbd> / <kbd>Y</kbd>）、旋轉 90°（<kbd>R</kbd>）。</td></tr>
+        <tr><td>單層</td><td>只顯示目前層（<kbd>Shift</kbd>+<kbd>S</kbd>），<kbd>+</kbd> / <kbd>-</kbd> 切換目前層。</td></tr>
+        <tr><td>NET</td><td>在焊墊、導通孔、導線上標示 NET 名稱（<kbd>N</kbd>）。</td></tr>
+        <tr><td>清除點亮</td><td>取消所有點亮（<kbd>Shift</kbd>+<kbd>C</kbd>）。</td></tr>
+        <tr><td>顯示…</td><td>圖層顯示與顏色、其他物件亮度、NET 名稱，以及<b>在焊墊上顯示 pin 腳編號</b>（預設關閉）。</td></tr>
+      </table>
+      <h3>點選與點亮</h3>
+      <ul>
+        <li>點選以畫面上看得到的為準：游標正下方最上層的焊墊／導線優先，其次是附近最近的，再來是文字與元件本體，最後才是鋪銅。被上層鋪銅蓋住的東西點不到（穿孔焊墊與導通孔除外）。</li>
+        <li><kbd>Shift</kbd>＋點選加入或移出所選；拖曳框選（左→右完全在框內、右→左碰到就選；<kbd>Shift</kbd> 加選、<kbd>Ctrl</kbd> 減選）。</li>
+        <li><b>點亮 NET</b>：<kbd>Ctrl</kbd>＋點選或雙擊導線、焊墊、鋪銅，點亮整個 NET（同 NET 的鋪銅一起亮）；<kbd>Shift</kbd> 可同時點亮多個。<kbd>Alt</kbd>＋點選還會把 NET 標到電路圖上（實驗功能，可在設定關閉）。</li>
+        <li>焊墊 pin 腳編號以淡黃色顯示；和 NET 名稱同時開啟時，長焊墊顯示「編號 NET」，方形焊墊上下兩行。</li>
+      </ul>
+      <h3>其他</h3>
+      <ul>
+        <li>下方 <b>LS 圖層組合選單</b>與彩色圖層分頁：切換顯示的圖層組合與目前層。</li>
+        <li>右上角<b>資訊小卡</b>：量測結果、點亮中的 NET、所選物件的資料（元件的每個焊墊與 NET 都能點來點亮）；可收合或關閉。</li>
+        <li>座標以 PCB 檔的原點顯示，單位可切換 mm / mil（右下角或 <kbd>Q</kbd>）。</li>
+      </ul>
+    </section>
+
+    <section id="pcb3d">
+      <h2><span class="n">8</span>PCB 3D</h2>
+      <figure>
+        <img src="img/pcb3d.png" alt="PCB 3D 檢視：左上部件清單、右側工具列、左下視角">
+        <figcaption>3D 檢視：左上是部件清單，右側是操作工具列，左下切換視角。</figcaption>
+      </figure>
+      <ul>
+        <li><b>右側工具列</b>：旋轉、平移、縮放、繞 X／Y／Z 軸旋轉、座標軸、部件、燈光、顯示、全圖、回預設。左鍵依所選工具操作，右鍵平移，滾輪縮放。</li>
+        <li><b>左下視角</b>：頂視、底視、等角、側視、翻面、回預設（<kbd>0</kbd> 頂視、<kbd>I</kbd> 等角、<kbd>S</kbd> 側視、<kbd>Home</kbd> 回預設）。</li>
+        <li><b>部件清單</b>：全部／顯示中／已隱藏，逐一勾選顯示或隱藏；選取元件後按 <kbd>H</kbd> 也能隱藏。</li>
+        <li><b>燈光</b>：整體亮度、環境光、光源方位與仰角、頭燈。</li>
+        <li>點元件會在右側小卡顯示資料，不會跳到電路圖。</li>
+        <li><b>元件外形</b>：PCB 檔內嵌的 3D 模型——STEP（.step／.stp）與 Parasolid 文字格式（.x_t）——會照實際外形與顏色顯示（繞線的電感、共模電感與變壓器、連接器等），擺放的位置、旋轉與底面翻轉都依 Altium 的設定。第一次切到 3D 時會在背景讀取模型，讀完前先以外框顯示。</li>
+        <li>Altium 自己的圓柱與球體本體會依其 X／Y／Z 旋轉擺放（例如立著的壓敏電阻圓盤、橫躺的保險絲），擠出本體依外框與高度顯示。</li>
+        <li>沒有內嵌在檔案裡（只連結外部檔案）、Parasolid 二進位格式（.x_b）或讀不出來的模型，仍以 Altium 記錄的外框與高度顯示；沒有 3D 本體的元件以半透明方塊代替。</li>
+        <li><b>顯示</b> → 「使用元件的 STEP 3D 模型」：關閉後改以外框顯示，3D 檢視較省記憶體（元件很多的板子約省 80 MB）。</li>
+      </ul>
+    </section>
+
+    <section id="probe">
+      <h2><span class="n">9</span>Cross Probe（電路圖 ⇄ PCB）</h2>
+      <ul>
+        <li><b>電路圖 → PCB</b>：點零件（或框選多個）→ PCB 選取並放大；<kbd>Alt</kbd>＋點網路 → PCB 點亮同一個 NET。</li>
+        <li><b>PCB → 電路圖</b>：點元件或它的焊墊 → 電路圖切到含該元件的圖紙並放大。</li>
+        <li>多個專案同時開啟時，依 <code>.PrjPcb</code> 判斷對應的板子；沒有專案的零散檔案可以放進<a href="#groups">自訂群組</a>互相查詢。</li>
+        <li><b>Cross Probe 跳轉</b>（工具列按鈕或 工具 選單）：開啟時會切換到另一邊的文件分頁並放大；關閉時另一邊只在背景更新選取與點亮，不切換分頁、不換圖紙、不縮放。分割檢視時兩邊都看得到，通常不需要切換。</li>
+        <li><b>從電路圖點選元件時，同時點亮 PCB 上的元件</b>（設定，預設關閉）：打開後在電路圖點零件（或框選多個），PCB 除了選取，還會把這些零件點亮、其他東西變淡；取消電路圖的選取時一起取消。反方向（在 PCB 點元件）不會讓電路圖變成「只看」。</li>
+        <li><b>開啟專案時自動分割檢視</b>可在 工具 選單或設定裡打開。</li>
+      </ul>
+    </section>
+
+    <section id="groups">
+      <h2><span class="n">10</span>專案與群組</h2>
+      <ul>
+        <li>Projects 面板裡，<span class="tag prj">PRJ</span> 是專案，底下的 Source Documents 列出專案的電路圖與 PCB；沒有專案的檔案放在 <b>Free Documents</b>。</li>
+        <li>和 AD 一樣，<b>點一下</b>已經開著分頁的檔案就切到那個分頁；還沒開的檔案<b>點兩下</b>開啟。</li>
+        <li><b>自訂群組</b>讓零散的電路圖與 PCB 互相 Cross Probe：選取檔案（<kbd>Ctrl</kbd> / <kbd>Shift</kbd> 可複選）→ 右鍵「加入群組」→「新群組…」，或直接把檔案<b>拖曳</b>到「新群組」那一列、某個群組或專案上。拖到 Free Documents 即移出群組。</li>
+        <li><b>重新命名群組</b>：在群組上按右鍵「重新命名…」，或選取群組後按 <kbd>F2</kbd>。名稱不能和其他群組相同。</li>
+        <li>.PrjPcb 本身列出的檔案隨專案開啟，不能移出；手動加進專案的檔案可以。</li>
+        <li>專案右鍵選單：分割檢視、開啟全部文件、<b>網路範圍</b>（Automatic / Flat / Hierarchical / Global / Strict Hierarchical）、編譯資訊、關閉專案、在檔案總管中顯示。</li>
+        <li>檔案右鍵選單：開啟、加入群組、移出群組、關閉、複製路徑、在檔案總管中顯示。</li>
+      </ul>
+    </section>
+
+    <section id="search">
+      <h2><span class="n">11</span>搜尋與 Navigator</h2>
+      <h3>搜尋（<kbd>Ctrl</kbd>+<kbd>F</kbd>）</h3>
+      <ul>
+        <li>搜尋位號、值、封裝或網路名稱；也可以直接用工具列右側的搜尋框。</li>
+        <li>分類：全部／零件／NET；範圍：這個頁面／這個群組／全部檔案。在電路圖上只搜電路圖，在 PCB 上只搜 PCB。</li>
+        <li>結果依檔案分組，點一下就跳過去。</li>
+      </ul>
+      <h3>Navigator 面板</h3>
+      <ul>
+        <li><b>元件</b>：目前專案的所有零件，點一下定位。</li>
+        <li><b>網路</b>：所有網路；「複製網路表（Markdown）」與「跨圖紙網路」可複製成表格。</li>
+        <li><b>BOM</b>：「BOM 合併」或「逐顆」，「複製 BOM（Markdown）」貼到文件或試算表。</li>
+      </ul>
+    </section>
+
+    <section id="pdf">
+      <h2><span class="n">12</span>匯出 PDF</h2>
+      <p>在電路圖上按 <kbd>Ctrl</kbd>+<kbd>P</kbd>（或 檔案 → 匯出電路圖 PDF…），輸出向量 PDF：</p>
+      <ul>
+        <li>範圍：目前圖紙、此電路圖全部圖紙、整個專案（或群組）。</li>
+        <li>紙張：自動統一、A4、A3、各頁原尺寸。</li>
+        <li>色彩：彩色、黑白。</li>
+        <li><b>完成後開啟PDF</b>：勾選時，存檔後直接用預設的 PDF 程式打開（會記住上次的選擇）。</li>
+      </ul>
+      <p>頁面依各張圖標題欄的<b>頁次</b>（Sheet Number）排列，而不是專案列出檔案的順序；沒有頁次的圖紙排在最後，保持原本的順序。</p>
+    </section>
+
+    <section id="settings">
+      <h2><span class="n">13</span>設定（<kbd>Ctrl</kbd>+<kbd>,</kbd>）</h2>
+      <table>
+        <tr><th>分類</th><th>項目</th></tr>
+        <tr><td>字體大小</td><td>面板預設字體、Properties 標題與內容、電路圖文字大小（50–250%，和 檢視 → 電路圖字體大小 同一個設定）。</td></tr>
+        <tr><td>單位</td><td>PCB 長度單位 mm / mil（座標、量測與資訊小卡）。</td></tr>
+        <tr><td>PCB 量測</td><td>量測文字的大小與顏色（8 種預設色或自訂 #RRGGBB，附即時預覽）。</td></tr>
+        <tr><td>Cross Probe</td><td>Alt＋點電路圖 NET 時點亮 PCB；Alt＋點 PCB NET 時標示電路圖（實驗功能）；Cross Probe 時切換到對應的文件分頁；從電路圖點選元件時，同時點亮 PCB 上的元件；開啟專案時自動分割檢視。</td></tr>
+        <tr><td>電路圖</td><td>顯示元件的值（Value）與參數（位號一律顯示）。</td></tr>
+      </table>
+    </section>
+
+    <section id="keys">
+      <h2><span class="n">14</span>快捷鍵</h2>
+      <h3>通用</h3>
+      <table>
+        <tr><td><kbd>F1</kbd></td><td>使用說明</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>O</kbd> ／ <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd></td><td>開啟檔案／資料夾</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>匯出電路圖 PDF</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>搜尋</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>,</kbd></td><td>設定</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>W</kbd></td><td>關閉文件分頁</td></tr>
+        <tr><td><kbd>F12</kbd></td><td>分割檢視</td></tr>
+        <tr><td><kbd>Q</kbd></td><td>切換 mm / mil</td></tr>
+        <tr><td><kbd>F2</kbd></td><td>重新命名所選的自訂群組（Projects 面板）</td></tr>
+      </table>
+      <h3>電路圖</h3>
+      <table>
+        <tr><td><kbd>Alt</kbd> / <kbd>Ctrl</kbd>＋點選</td><td>只看同一網路（同專案其他圖紙與 PCB 一起點亮）</td></tr>
+        <tr><td>滾輪、<kbd>PgUp</kbd> / <kbd>PgDn</kbd></td><td>縮放</td></tr>
+        <tr><td><kbd>F</kbd></td><td>適合視窗</td></tr>
+        <tr><td><kbd>G</kbd></td><td>格線</td></tr>
+        <tr><td><kbd>Shift</kbd>+<kbd>C</kbd></td><td>清除所有點亮</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>取消</td></tr>
+      </table>
+      <h3>PCB 2D</h3>
+      <table>
+        <tr><td><kbd>Ctrl</kbd>＋點選、雙擊</td><td>點亮 NET／元件（<kbd>Shift</kbd> 加選）</td></tr>
+        <tr><td><kbd>Alt</kbd>＋點選</td><td>點亮 NET 並標到電路圖</td></tr>
+        <tr><td><kbd>M</kbd></td><td>量測</td></tr>
+        <tr><td><kbd>F</kbd></td><td>全圖</td></tr>
+        <tr><td><kbd>B</kbd> ／ <kbd>X</kbd> <kbd>Y</kbd> ／ <kbd>R</kbd></td><td>翻面／鏡射／旋轉</td></tr>
+        <tr><td><kbd>N</kbd></td><td>NET 名稱</td></tr>
+        <tr><td><kbd>Shift</kbd>+<kbd>S</kbd>、<kbd>+</kbd> <kbd>-</kbd></td><td>單層模式、切換目前層</td></tr>
+        <tr><td><kbd>2</kbd> / <kbd>3</kbd></td><td>2D / 3D</td></tr>
+        <tr><td><kbd>Shift</kbd>+<kbd>C</kbd></td><td>清除點亮</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>取消</td></tr>
+      </table>
+      <h3>PCB 3D</h3>
+      <table>
+        <tr><td>左鍵／右鍵／滾輪</td><td>依工具旋轉、平移、縮放／平移／縮放</td></tr>
+        <tr><td><kbd>O</kbd> <kbd>P</kbd> <kbd>Z</kbd></td><td>旋轉／平移／縮放工具</td></tr>
+        <tr><td><kbd>H</kbd></td><td>隱藏所選元件</td></tr>
+        <tr><td><kbd>Home</kbd> ／ <kbd>0</kbd> ／ <kbd>I</kbd> ／ <kbd>S</kbd></td><td>回預設／頂視／等角／側視</td></tr>
+        <tr><td><kbd>A</kbd></td><td>座標軸</td></tr>
+      </table>
+    </section>
+
+    <section id="install">
+      <h2><span class="n">15</span>安裝與疑難排解</h2>
+      <h3>安裝與更新</h3>
+      <ul>
+        <li>執行安裝檔即可，只裝給目前使用者，不需要系統管理員權限，也不必另外安裝 .NET。</li>
+        <li>已經裝過時直接執行新的安裝檔，選「修復／更新」；設定、最近開啟的檔案、群組與檔案關聯都會保留。</li>
+        <li>安裝位置：<code>%LOCALAPPDATA%\Programs\Herald PCB Reader</code>。</li>
+      </ul>
+      <h3>檔案關聯</h3>
+      <p>安裝後 <code>.SchDoc</code> / <code>.PcbDoc</code> / <code>.PrjPcb</code> 預設用本程式開啟，檔案總管的圖示是 <span class="tag sch">SCH</span> <span class="tag pcb">PCB</span> <span class="tag prj">PRJ</span>。</p>
+      <div class="warn">如果這台電腦以前用別的程式開過這些檔案，第一次雙擊時 Windows 會問「您要如何開啟這個檔案？」：選 <b>Herald PCB Reader</b> 並勾「一律使用此應用程式」。也可以到 設定 → 應用程式 → 預設應用程式 → Herald PCB Reader 一次改好。圖示沒有馬上更新時，在資料夾按 <kbd>F5</kbd> 或登出再登入。</div>
+      <h3>常見問題</h3>
+      <ul>
+        <li><b>Windows 跳出「Windows 已保護您的電腦」</b>：安裝檔沒有數位簽章，按「其他資訊」→「仍要執行」。</li>
+        <li><b>電路圖與 PCB 沒有互相查詢</b>：確認兩者在同一個專案或同一個自訂群組；零散檔案請先放進同一個群組。</li>
+        <li><b>網路沒有連到其他圖紙</b>：看 Properties 的「為什麼沒有連到其他圖紙」，或在專案右鍵改「網路範圍」。</li>
+        <li><b>程式發生錯誤或突然關閉</b>：錯誤記在 <code>%APPDATA%\AltiumReader2\crash.log</code>，回報問題時請附上這個檔案。</li>
+      </ul>
+    </section>
+
+    <section id="legal">
+      <h2><span class="n">16</span>資安、授權與商標</h2>
+      <h3>資安重點（供資安審核參考）</h3>
+      <ul>
+        <li><b>完全離線</b>：程式不連網、不上傳任何資料、沒有自動更新或遙測；只讀取使用者開啟的檔案。</li>
+        <li><b>只用目前使用者的權限</b>：安裝在 <code>%LOCALAPPDATA%\Programs\Herald PCB Reader</code>，不需要系統管理員權限，登錄檔只寫入 <code>HKEY_CURRENT_USER</code>（檔案關聯與解除安裝資訊）；設定、說明檔與錯誤記錄都在 <code>%APPDATA%\AltiumReader2</code>，PDF 只寫到使用者選的位置。解除安裝只刪除它自己安裝的檔案。</li>
+        <li><b>只開檔案、不執行檔案</b>：電路圖與 PCB 只被讀取與顯示，不執行其中任何內容。損毀或刻意改造的檔案會顯示「無法開啟」，不會讓程式當掉、卡住或耗盡記憶體（讀檔器會檢查磁區大小與鏈結，限制在檔案實際的大小內）；KiCad／Eagle 的 XML 不處理 DTD，也不讀取外部資源。</li>
+        <li><b>程式之間的溝通只限本人</b>：再次雙擊檔案時，交給已開啟視窗的管道只允許同一個 Windows 使用者連線。</li>
+        <li><b>測試介面預設關閉</b>：自動化測試用的本機連接埠只有以 <code>--automation-port</code> 加上 <code>--automation-token</code> 啟動時才開，只接受 127.0.0.1 上帶正確權杖的要求，網頁無法從瀏覽器操作它。</li>
+        <li><b>執行環境</b>：內含 .NET 10（長期支援版，支援到 2028 年 11 月）的最新安全性更新 10.0.14，不依賴電腦上另外安裝的 .NET。</li>
+        <li>安裝檔與程式沒有數位簽章；公司若有程式碼簽章憑證，建議由 IT 簽章後再發佈。</li>
+      </ul>
+      <h3>著作權與授權</h3>
+      <p>Herald PCB Reader：Copyright © 2026 Johnny.ch.Tsai。本程式是<b>自由軟體</b>，依 <b>GNU 通用公共授權條款第 3 版（GPL-3.0）</b>發佈：</p>
+      <ul>
+        <li>可以自由使用、複製、研究、修改與散布。散布本程式或修改後的版本時，必須同樣以 GPL-3.0 提供，並讓收到的人可以取得完整的原始碼。</li>
+        <li><b>不提供任何擔保</b>，包括可售性或特定用途適用性的默示擔保。</li>
+        <li>介面用的 AvalonDock 是 Microsoft Public License（Ms-PL）授權，自由軟體基金會認為它和 GPL 不相容，所以著作權人依 GPL 第 7 條另外允許：本程式與 AvalonDock 結合後的作品可以照常散布。</li>
+        <li><b>原始碼</b>：每個版本的發行 zip 都附上該版本完整的原始碼（<code>HeraldPcbReader_v版本_source.zip</code>），包括建置與安裝程式的腳本；也公開在 <a href="https://github.com/vip3310495-Johnny/HeraldPcbReader">github.com/vip3310495-Johnny/HeraldPcbReader</a>。</li>
+        <li>授權聲明見 <a href="NOTICE.txt">NOTICE.txt</a>（說明 → 授權條款（GPL-3.0）），GPL-3.0 全文見 <a href="LICENSE.txt">LICENSE.txt</a>（說明 → GPL-3.0 全文）；安裝資料夾裡也各有一份。中文說明僅供參考，以英文的 GPL 原文為準。</li>
+      </ul>
+      <p>程式使用的第三方元件依各自的授權提供：.NET 執行環境（MIT）、AvalonDock 與其 VS2013 主題（Ms-PL）、Helix Toolkit（MIT）、SkiaSharp 與其內含的 Skia 等函式庫（MIT／BSD 等）、3D 模型三角化採用的 earcut 演算法（ISC，Mapbox）、NSIS 安裝程式（zlib）。各授權與聲明的全文見 <a href="THIRD-PARTY-NOTICES.txt">THIRD-PARTY-NOTICES.txt</a>（說明 → 授權與第三方元件，安裝資料夾裡也有一份）。</p>
+      <p>說明中的截圖來自網路上公開、但沒有註明授權條款的範例專案，所以截圖裡的電路圖與板子內容都已模糊處理，只呈現程式的介面。</p>
+      <h3>商標</h3>
+      <p>Altium、Altium Designer、KiCad、EAGLE 等名稱為其各自所有者的商標。本程式為獨立開發的檢視工具，與這些公司及專案無關，也未經其認可；文中提到它們只是為了說明可以開啟的檔案格式。</p>
+    </section>
+
+    <footer>Herald PCB Reader {{VERSION}} · Copyright © 2026 Johnny.ch.Tsai · 依 <a href="LICENSE.txt">GNU GPL 第 3 版</a>發佈，不提供任何擔保 · 這份說明隨程式安裝，可離線閱讀。</footer>
+  </main>
+</div>
+
+<div class="lightbox" id="lb" role="dialog" aria-label="放大圖片"><img alt=""></div>
+
+<script>
+  // table of contents: mark the section being read
+  try {
+    const links = Array.from(document.querySelectorAll('nav.toc a'));
+    const byId = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+    const io = new IntersectionObserver(entries => {
+      for (const e of entries) if (e.isIntersecting) { links.forEach(a => a.classList.remove('on')); byId.get(e.target.id)?.classList.add('on'); }
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    document.querySelectorAll('main section').forEach(s => io.observe(s));
+  } catch (_) { }
+  // click a screenshot to see it full size
+  const lb = document.getElementById('lb'), lbImg = lb.querySelector('img');
+  document.querySelectorAll('figure img').forEach(img => img.addEventListener('click', () => { lbImg.src = img.src; lbImg.alt = img.alt; lb.classList.add('open'); }));
+  lb.addEventListener('click', () => lb.classList.remove('open'));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') lb.classList.remove('open'); });
+</script>
+</body>
+</html>
