@@ -1,4 +1,4 @@
-# Herald PCB Reader（原 Altium Reader 2）
+# Herald PCB Reader
 
 完全重寫的第二版（2.4.0 起改名為 Herald PCB Reader）：C# / .NET 10 WPF 原生 Windows 程式（2.8.0 起；之前是 .NET 8），介面仿 Altium Designer 19（深灰主題、可停靠面板、文件分頁）。
 第一版（`../AltiumReader`，Electron）保留不動；安裝第二版後，`.SchDoc` / `.PcbDoc` / `.PrjPcb` 的預設開啟程式改為第二版。
