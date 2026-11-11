@@ -14,7 +14,7 @@ Unicode true
 
 !define APP      "Herald PCB Reader"
 !define EXE      "HeraldPcbReader.exe"
-!define VER      "2.9.3"
+!define VER      "2.9.4"
 !define AUTHOR   "Johnny.ch.Tsai"
 !define REPO     "https://github.com/vip3310495-Johnny/HeraldPcbReader"
 !define UNKEY    "Software\Microsoft\Windows\CurrentVersion\Uninstall\HeraldPcbReader"

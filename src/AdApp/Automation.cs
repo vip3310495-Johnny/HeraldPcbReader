@@ -362,7 +362,7 @@ static class Automation
                                 case "clear": fv.ClearFingers(); break;
                                 case "scale": fv.SetFingerScale(double.Parse(q["v"], System.Globalization.CultureInfo.InvariantCulture)); break;
                             }
-                            return JsonSerializer.Serialize(new { count = fv.FingerCount, angle = fv.FingerAngle, tool = fv.Tool, scale = Settings.Current.FingerScale, pulse = fv.PulseInfo });
+                            return JsonSerializer.Serialize(new { count = fv.FingerCount, angle = fv.FingerAngle, tool = fv.Tool, scale = Settings.Current.FingerScale });
                         }
                     case "usestep": Views.Pcb3DOptions.UseStepModels = q["on"] != "0"; break;
                     case "step3d":   // the STEP models of doc: read time, counts, and the memory the process uses

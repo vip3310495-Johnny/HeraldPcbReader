@@ -83,48 +83,6 @@ public sealed partial class PcbView
         }
     }
 
-    // ---------- pulse: a ring that keeps spreading out from each fingertip ----------
-    // WPF shapes over the board with their own animation, so the board is not painted again for every frame
-    System.Windows.Controls.Canvas _fingerFx;
-    static readonly Brush PulseBrush = Freeze(new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF)));   // white: shows on red and yellow copper
-    static T Freeze<T>(T f) where T : System.Windows.Freezable { f.Freeze(); return f; }
-
-    /// <summary>Puts a ring on every hand (called after each paint, i.e. whenever the view or the hands change).</summary>
-    void SyncFingerFx()
-    {
-        if (_fingerFx == null)
-        {
-            if (_fingers.Count == 0) return;
-            _fingerFx = new System.Windows.Controls.Canvas { IsHitTestVisible = false, ClipToBounds = true };
-            _content.Children.Insert(_content.Children.IndexOf(_canvas) + 1, _fingerFx);
-        }
-        _fingerFx.Visibility = St.Mode3D || _fingers.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
-        while (_fingerFx.Children.Count < _fingers.Count) _fingerFx.Children.Add(PulseRing(_fingerFx.Children.Count));
-        while (_fingerFx.Children.Count > _fingers.Count) _fingerFx.Children.RemoveAt(_fingerFx.Children.Count - 1);
-        double r = FingerSize * 0.95;
-        for (int i = 0; i < _fingers.Count; i++)
-        {
-            var e = (System.Windows.Shapes.Ellipse)_fingerFx.Children[i];
-            var s = St.ToScreen(_fingers[i].X, _fingers[i].Y, W, H);
-            e.Width = e.Height = 2 * r; e.StrokeThickness = Math.Max(2.5, FingerSize / 9);
-            System.Windows.Controls.Canvas.SetLeft(e, s.X - r); System.Windows.Controls.Canvas.SetTop(e, s.Y - r);
-        }
-    }
-
-    static System.Windows.Shapes.Ellipse PulseRing(int i)
-    {
-        var st = new ScaleTransform(0.15, 0.15);
-        var e = new System.Windows.Shapes.Ellipse { Stroke = PulseBrush, RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = st, Opacity = 0 };
-        var dur = new Duration(TimeSpan.FromSeconds(1.6));
-        // the rings of different hands start a little apart, so the board does not blink all at once
-        var begin = TimeSpan.FromMilliseconds(i * 230 % 1600);
-        var grow = new System.Windows.Media.Animation.DoubleAnimation(0.15, 1, dur) { RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever, BeginTime = begin, EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut } };
-        var fade = new System.Windows.Media.Animation.DoubleAnimation(0.95, 0, dur) { RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever, BeginTime = begin };
-        st.BeginAnimation(ScaleTransform.ScaleXProperty, grow); st.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
-        e.BeginAnimation(UIElement.OpacityProperty, fade);
-        return e;
-    }
-
     void EnsureFingerPanel()
     {
         if (_fingerPanel != null) return;
@@ -178,7 +136,6 @@ public sealed partial class PcbView
     // ---------- automation ----------
     public void FingerAtView(Point viewPt, ModifierKeys mods) { if (Tool != "finger") SetTool("finger"); FingerClick(TranslatePoint(viewPt, _canvas), mods); }
     public void FingerRotateForTest() => FingerRotate();
-    public string PulseInfo => _fingerFx == null ? "none" : string.Join(" | ", _fingerFx.Children.OfType<System.Windows.Shapes.Ellipse>().Select(e => $"{e.Opacity:0.00} {((ScaleTransform)e.RenderTransform).ScaleX:0.00} {System.Windows.Controls.Canvas.GetLeft(e):0},{System.Windows.Controls.Canvas.GetTop(e):0} {e.Width:0} {e.Visibility}")) + " fx " + _fingerFx.Visibility + " " + _fingerFx.ActualWidth.ToString("0");
     /// <summary>Tests: a key pressed on the view, routed like a real one.</summary>
     public void KeyForTest(Key k) { var src = PresentationSource.FromVisual(this); if (src == null) return; RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, src, 0, k) { RoutedEvent = Keyboard.KeyDownEvent }); }
     public static void SaveFingerCursorPng(string path, double angle, double sizePx) => FingerArt.SavePng(path, angle, sizePx);

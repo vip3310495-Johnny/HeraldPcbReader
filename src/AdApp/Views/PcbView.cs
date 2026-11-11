@@ -419,7 +419,6 @@ public sealed partial class PcbView : Grid
         if (keep && !_canvas.IsMouseCaptured) { c.Flush(); _frame?.Dispose(); _frame = e.Surface.Snapshot(); _frameStale = false; }
         PcbRenderer.DrawMeasure(c, St, W, H);
         c.Restore();
-        SyncFingerFx();
     }
 
     /// <summary>Tile pixel → device pixel, computed in double so deep zoom stays exact.</summary>
@@ -504,7 +503,7 @@ public sealed partial class PcbView : Grid
         else { if (_view3 != null) _view3.Visibility = Visibility.Collapsed; _canvas.Visibility = Visibility.Visible; Invalidate(); }
         _card.Margin = new Thickness(12, 58, on ? 86 : 12, 12);
         _tabsHost.Visibility = on ? Visibility.Collapsed : Visibility.Visible;   // layers mean nothing in 3D
-        SyncBar(); RefreshCard(); SyncFingerFx();
+        SyncBar(); RefreshCard();
     }
     public Pcb3DView View3 => _view3;
 

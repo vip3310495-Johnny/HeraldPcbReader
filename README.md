@@ -9,7 +9,7 @@
 
 | 檔案 | 說明 |
 |---|---|
-| `dist\Herald PCB Reader Setup 2.9.3.exe` | 安裝版（只裝給目前使用者，不需系統管理員權限；已安裝過時可直接選「修復／更新」，不必先解除安裝） |
+| `dist\Herald PCB Reader Setup 2.9.4.exe` | 安裝版（只裝給目前使用者，不需系統管理員權限；已安裝過時可直接選「修復／更新」，不必先解除安裝） |
 | `publish\HeraldPcbReader.exe` | 免安裝單一執行檔（已內含 .NET 10，不必另外安裝） |
 
 安裝後位置：`%LOCALAPPDATA%\Programs\Herald PCB Reader\HeraldPcbReader.exe`
@@ -72,6 +72,11 @@ et10.0-windowswin-x64R2R`，否則裡面留下的 composite 元件會讓程式�
   失敗的面是比 0.03 mm 還薄的細縫或 Altium 自己也空著的面，畫面上看不出來。只有切到 3D 時才會讀模型，啟動時間、2D 檢視與安裝大小不受影響。
 - 開發時另外用 Node.js 寫了同樣演算法的原型，在瀏覽器裡逐一看過兩塊測試板上的元件（TO-263、SMA 連接器、變壓器的繞線、晶片電容等）再移植成 C#。
 
+## 2.9.4：指示標記預設 75%、拿掉擴散白圈
+
+- 手指標記與游標的預設大小改為 75%（約 35 DIP 高，原本 46）。2.9.2–2.9.3 會把當時的預設 100% 寫進 settings.json，所以第一次用 2.9.4 開啟時，設定裡剛好是 100% 的會改成 75%（只做一次，設定版本 3）；調成其他大小的保持不變。
+- 拿掉每個標記從指尖向外擴散的白圈動畫（`PcbView.Finger.cs` 不再在畫布上疊 WPF 動畫）；標記本身的洋紅色、深色底、白色光暈與指尖青點不變，都是靜態的。
+
 ## 2.9.3：拿掉「按住空白鍵拖曳平移」
 
 電路圖與 PCB 2D 都不再用「按住空白鍵＋左鍵拖曳」平移，避免誤用（例如在「指示」工具裡空白鍵是轉向）。平移改用右鍵或中鍵拖曳（「指示」工具裡左鍵拖曳也可以），滾輪縮放不變。
@@ -81,8 +86,8 @@ et10.0-windowswin-x64R2R`，否則裡面留下的 composite 元件會讓程式�
 - **指示標記（Active Bar「指示」或 <kbd>P</kbd>）**：給功能師找到零件後把多個位置指出來，再看著整片 PCB 去重工或修改。
   - 游標變成一隻手指（`Views/FingerArt.cs` 畫手、`Views/PcbView.Finger.cs` 處理操作）；預設朝左上（-45°），每次開啟都從 -45° 開始，<kbd>空白鍵</kbd>以指尖為圓心順時針轉 45°（工具開著時左鍵拖曳也能平移；右鍵／中鍵拖曳照常平移）。
   - 左鍵在板上留下同方向的手指：記住的是指尖在板上的座標與板上的方向，所以平移、縮放、旋轉、鏡射、翻面後都還指著同一點、同一方向，而且在螢幕上永遠和游標一樣大。<kbd>Ctrl</kbd>＋左鍵拿掉最近的一個，<kbd>Esc</kbd> 清除全部（沒有標記時離開工具），右鍵選單也有「清除指示標記」。
-  - 全圖時的可視性：一開始用黃色的手，在 Urukul 這種紅黃為主的板子上會和銅箔混在一起，所以改成霓虹洋紅（銅箔層不會用的顏色）＋深色外框、白色光暈、指尖青色圓點，標記在板上還加一圈柔和的深色底；另外每個標記有一圈從指尖向外擴散的白圈（WPF 動畫，疊在畫布上，不必每一格重畫整塊板子；不同標記錯開時間，不會整片同時閃）。
-  - 左下角面板：大小 10–300%（同時改游標與標記，位置與方向不變，記在設定裡）、已標記數量、清除全部。
+  - 全圖時的可視性：一開始用黃色的手，在 Urukul 這種紅黃為主的板子上會和銅箔混在一起，所以改成霓虹洋紅（銅箔層不會用的顏色）＋深色外框、白色光暈、指尖青色圓點，標記在板上還加一圈柔和的深色底；另外每個標記有一圈從指尖向外擴散的白圈（WPF 動畫，疊在畫布上，不必每一格重畫整塊板子；不同標記錯開時間，不會整片同時閃；2.9.4 拿掉）。
+  - 左下角面板：大小 10–300%（同時改游標與標記，位置與方向不變，記在設定裡；2.9.4 起預設 75%）、已標記數量、清除全部。
   - 游標是程式產生的 .cur（手的圖、熱點在指尖，依螢幕 DPI 放大，最大 256 px）。
 - **Parasolid 二進位檔（.x_b）**：Altium 嵌入的 .x_b 是 neutral binary（大端序、指標以 index＋1 的 2 位元組表示），而且帶有和基準 schema（SCH_13006）的差異表（每種節點第一次出現時寫出 Copy／Delete／Insert／Append 指令）。讀取器照這個差異表組出每種節點的欄位，和 .x_t 共用同一套節點與三角化。使用者那塊板子上的 PTC（PTCE5／PTCE6）因此也照實際外形顯示：10 個面全部成功。基準 schema 和參考文件不同的地方（EDGE 多一個欄位、ATTRIB_DEF 的陣列長度、LIST 的欄位）由這個檔案的差異表核對過。
 
@@ -167,7 +172,7 @@ et10.0-windowswin-x64R2R`，否則裡面留下的 composite 元件會讓程式�
 ```
 rd /s /q src\AdApp\obj\Release\net10.0-windows\win-x64\R2R   :: 先清掉上次的預先編譯結果（做過 composite 實驗後必須）
 "%USERPROFILE%\.dotnet10\dotnet.exe" publish src\AdApp -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=false -p:PublishReadyToRun=true -p:DebugType=none -o publish
-makensis installer\HeraldPcbReader.nsi      :: 產生 dist\Herald PCB Reader Setup 2.9.3.exe
+makensis installer\HeraldPcbReader.nsi      :: 產生 dist\Herald PCB Reader Setup 2.9.4.exe
 ```
 
 ## 專案結構

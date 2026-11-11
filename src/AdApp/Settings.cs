@@ -21,7 +21,7 @@ public sealed class Settings
     public bool SessionSplit { get; set; }
     public bool CrossProbeJump { get; set; } = true;
     public bool AutoSplit { get; set; }
-    /// <summary>Settings layout version (2: split view off by default).</summary>
+    /// <summary>Settings layout version (2: split view off by default; 3: point finger 75 % by default).</summary>
     public int SchemaVersion { get; set; }
     public bool UnitsMm { get; set; } = true;
     public string SchTheme { get; set; } = "Altium";
@@ -45,8 +45,8 @@ public sealed class Settings
     public bool ProbeLightPart { get; set; }
     /// <summary>匯出 PDF: open the file when it is written.</summary>
     public bool PdfOpenAfter { get; set; } = true;
-    /// <summary>指示 (point finger): size of the hands and the cursor, 0.1–3 (10–300 %).</summary>
-    public double FingerScale { get; set; } = 1.0;
+    /// <summary>指示 (point finger): size of the hands and the cursor, 0.1–3 (10–300 %); 75 % unless changed (2.9.4).</summary>
+    public double FingerScale { get; set; } = 0.75;
     /// <summary>PCB selection filter (class names); null = everything.</summary>
     public List<string> PickFilter { get; set; }
 
@@ -74,6 +74,9 @@ public sealed class Settings
     {
         try { Current = JsonSerializer.Deserialize(File.ReadAllText(FilePath), SettingsJson.Default.Settings) ?? new(); } catch { Current = new(); }
         if (Current.SchemaVersion < 2) { Current.AutoSplit = false; Current.SchemaVersion = 2; }   // 2.2: split view starts off
+        // 2.9.4: the hands start at 75 %; 2.9.2–2.9.3 wrote their 100 % default into every settings.json, so that one
+        // value is taken as "not chosen" (once)
+        if (Current.SchemaVersion < 3) { if (Current.FingerScale == 1.0) Current.FingerScale = 0.75; Current.SchemaVersion = 3; }
         return Current;
     }
 
