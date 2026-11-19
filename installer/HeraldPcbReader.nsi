@@ -43,7 +43,7 @@ BrandingText "${APP} ${VER} · Copyright (C) 2026 ${AUTHOR} · GNU GPL v3"
 !insertmacro MUI_PAGE_LICENSE "copyright.txt"
 Page custom ExistingPage ExistingLeave
 !define MUI_PAGE_CUSTOMFUNCTION_PRE DirPre
-!define MUI_DIRECTORYPAGE_TEXT_TOP "${APP}（原名 ${OLDAPP}）。這台電腦如果裝過 ${OLDAPP}，會換成新版：設定、最近開啟的檔案與檔案關聯都會保留。"
+!define MUI_DIRECTORYPAGE_TEXT_TOP "安裝 ${APP}。這台電腦如果裝過舊版 ${OLDAPP}，會換成新版：設定、最近開啟的檔案與檔案關聯都會保留。"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
