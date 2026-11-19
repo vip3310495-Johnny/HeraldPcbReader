@@ -9,7 +9,7 @@
 
 | 檔案 | 說明 |
 |---|---|
-| `dist\Herald PCB Reader Setup 2.9.4.exe` | 安裝版（只裝給目前使用者，不需系統管理員權限；已安裝過時可直接選「修復／更新」，不必先解除安裝） |
+| `dist\Herald PCB Reader Setup 2.9.5.exe` | 安裝版（只裝給目前使用者，不需系統管理員權限；已安裝過時可直接選「修復／更新」，不必先解除安裝） |
 | `publish\HeraldPcbReader.exe` | 免安裝單一執行檔（已內含 .NET 10，不必另外安裝） |
 
 安裝後位置：`%LOCALAPPDATA%\Programs\Herald PCB Reader\HeraldPcbReader.exe`
@@ -71,6 +71,13 @@ et10.0-windowswin-x64R2R`，否則裡面留下的 composite 元件會讓程式�
   | DieBieMS BMS（275 個元件） | 29 | 5,285 | 0 | 約 4.8 萬 | 0.6 秒 | 628 → 711 MB（+83 MB） |
   失敗的面是比 0.03 mm 還薄的細縫或 Altium 自己也空著的面，畫面上看不出來。只有切到 3D 時才會讀模型，啟動時間、2D 檢視與安裝大小不受影響。
 - 開發時另外用 Node.js 寫了同樣演算法的原型，在瀏覽器裡逐一看過兩塊測試板上的元件（TO-263、SMA 連接器、變壓器的繞線、晶片電容等）再移植成 C#。
+
+## 2.9.5：電路圖 Alt＋點選不再選到上下相鄰的網路
+
+- 問題：在連接器這類接腳、導線一排排緊鄰（2.54 mm）的地方，直接點選選到正確的網路，Alt＋點選卻有時選到上面或下面那一條。原因是兩者找的東西不同：直接點選先找 7 px 內的導線、再找網路標籤；Alt 則把導線、接點和**元件接腳**放在一起比距離，所以上下一排的接腳或接點只要比點到的導線近一點就會被選走。
+- 另外直接點選也有類似的偏移：點在網路標籤文字的上半部時，7 px 內的上一條導線會先被選走（Urukul 的電路圖在 5 px/mm 時，標籤文字範圍內約三分之一的位置會選到別的網路）。
+- 現在兩者用同一套規則（`SchView.NetNear`）：游標在網路標籤（或電源符號、跨頁符號）的範圍裡就選它，除非正好壓在一條線上（1.5 px 內）；否則選 7 px 內最近的導線、接點、標籤或符號。Alt＋點選一律選和直接點選相同的網路，只有直接點選找不到網路（會選到零件，例如點在接腳上）時才改選最近接腳的網路。
+- 驗證：自動化指令 `/hitscan` 在 20 張電路圖（DieBieMS、Urukul、KiCad、EAGLE 範例與一張接腳直接接標籤的測試圖）上，於標籤文字內、導線上，以及導線、標籤、接腳端點、電源符號四周約 10 萬個位置分別點擊：Alt 與直接點選選到不同網路的位置是 0；標籤文字內選錯的位置從 5,039 降到 0（5 px/mm），全圖縮放時從 6,258 降到 2（文字上正好有線經過）。導線上剩下的 26 個是兩條導線交叉的點，修改前後相同。
 
 ## 2.9.4：指示標記預設 75%、拿掉擴散白圈
 
@@ -172,7 +179,7 @@ et10.0-windowswin-x64R2R`，否則裡面留下的 composite 元件會讓程式�
 ```
 rd /s /q src\AdApp\obj\Release\net10.0-windows\win-x64\R2R   :: 先清掉上次的預先編譯結果（做過 composite 實驗後必須）
 "%USERPROFILE%\.dotnet10\dotnet.exe" publish src\AdApp -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=false -p:PublishReadyToRun=true -p:DebugType=none -o publish
-makensis installer\HeraldPcbReader.nsi      :: 產生 dist\Herald PCB Reader Setup 2.9.4.exe
+makensis installer\HeraldPcbReader.nsi      :: 產生 dist\Herald PCB Reader Setup 2.9.5.exe
 ```
 
 ## 專案結構

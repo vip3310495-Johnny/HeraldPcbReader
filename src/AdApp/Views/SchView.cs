@@ -360,58 +360,133 @@ public sealed class SchView : Grid
         return x0 == double.MaxValue ? null : new[] { x0, y0, x1, y1 };
     }
 
-    // ---------- hit testing (port of v1 rules) ----------
+    // ---------- hit testing ----------
     static double SegDist(double x1, double y1, double x2, double y2, double x, double y)
     {
         double dx = x2 - x1, dy = y2 - y1, l2 = dx * dx + dy * dy, t = l2 > 0 ? Math.Clamp(((x - x1) * dx + (y - y1) * dy) / l2, 0, 1) : 0;
         return Math.Sqrt(Math.Pow(x1 + t * dx - x, 2) + Math.Pow(y1 + t * dy - y, 2));
     }
 
+    static double BoxDist(double[] b, double x, double y)
+    {
+        double dx = Math.Max(0, Math.Max(b[0] - x, x - b[2])), dy = Math.Max(0, Math.Max(b[1] - y, y - b[3]));
+        return Math.Sqrt(dx * dx + dy * dy);
+    }
+
+    // What is under the pointer wins over what is merely near it (2.9.5). Inside a net label's text, or a power port /
+    // off-sheet symbol, that net is taken unless a line lies right under the pointer (OnPx); otherwise the nearest wire,
+    // junction, label or symbol within NearPx. Before, any wire within 7 px came before the label under the pointer,
+    // so a click on the upper half of a label's text in a column of labels 2.54 mm apart could pick the net above.
+    const double NearPx = 7, OnPx = 1.5;
+
+    /// <summary>The net a plain click takes at a point, with its score (distance; a box around the point counts as
+    /// OnPx, one beside it as OnPx + its distance): wires, junctions, net labels, power ports and off-sheet symbols.</summary>
+    (string Net, double D) NetNear(SchSheet sh, double wx, double wy)
+    {
+        double tol = NearPx / _s, on = OnPx / _s, bd = double.MaxValue; string best = null;
+        void Line(double d, string n) { if (n != null && d < tol && d < bd) { bd = d; best = n; } }
+        void Box(double[] b, string n) { double d = BoxDist(b, wx, wy); if (n != null && d < tol && on + d < bd) { bd = on + d; best = n; } }
+        foreach (var w in sh.Wires) if (w.Kind == WireKind.Wire) Line(SegDist(w.X1, w.Y1, w.X2, w.Y2, wx, wy), w.Net);
+        foreach (var j in sh.Junctions) Line(Math.Sqrt((j.X - wx) * (j.X - wx) + (j.Y - wy) * (j.Y - wy)), j.Net);
+        foreach (var l in sh.Labels) if (l.Net != null && !l.SkipDraw) Box(SchRenderer.LabelGeom(l, FontScale).BB, l.Net);
+        foreach (var c in sh.Comps) if (c.Power || c.Virtual) Box(c.BBox, c.Pins.FirstOrDefault(q => q.Net != null)?.Net);
+        return (best, bd);
+    }
+
+    /// <summary>The nearest visible component pin within NearPx (Alt takes its net; a plain click on a pin takes the part).</summary>
+    string PinNear(SchSheet sh, double wx, double wy)
+    {
+        double bd = NearPx / _s; string best = null;
+        foreach (var c in sh.Comps)
+        {
+            if (c.Power || c.Virtual) continue;
+            foreach (var p in c.Pins) { if (p.Net == null || p.Hidden) continue; var d = SegDist(p.X, p.Y, p.Ex, p.Ey, wx, wy); if (d < bd) { bd = d; best = p.Net; } }
+        }
+        return best;
+    }
+
     public SchSel HitTest(double wx, double wy)
     {
         var sh = Sheet; if (sh == null) return null;
-        double tol = 7 / _s, bd = tol; SchSel best = null;
-        foreach (var w in sh.Wires) { if (w.Kind != WireKind.Wire || w.Net == null) continue; var d = SegDist(w.X1, w.Y1, w.X2, w.Y2, wx, wy); if (d < bd) { bd = d; best = SchSel.NetSel(w.Net, false); } }
-        if (best != null) return best;
-        foreach (var l in sh.Labels)
-        {
-            if (l.Net == null || l.SkipDraw) continue;
-            var bb = SchRenderer.LabelGeom(l, FontScale).BB;
-            if (wx >= bb[0] - tol && wx <= bb[2] + tol && wy >= bb[1] - tol && wy <= bb[3] + tol) return SchSel.NetSel(l.Net, false);
-        }
-        SchComponent bc = null; double ba = double.MaxValue;
+        if (NetNear(sh, wx, wy).Net is { } n) return SchSel.NetSel(n, false);
+        double tol = NearPx / _s; SchComponent bc = null; double ba = double.MaxValue;
         foreach (var c in sh.Comps)
         {
-            if (c.Pins.Count == 0 && !c.Missing) continue;
+            if (c.Power || c.Virtual || (c.Pins.Count == 0 && !c.Missing)) continue;
             var b = c.BBox;
             if (wx >= b[0] - tol && wx <= b[2] + tol && wy >= b[1] - tol && wy <= b[3] + tol) { var a = (b[2] - b[0]) * (b[3] - b[1]); if (a < ba) { ba = a; bc = c; } }
         }
-        if (bc == null) return null;
-        if (bc.Power || bc.Virtual) { var p = bc.Pins.FirstOrDefault(q => q.Net != null); return p != null ? SchSel.NetSel(p.Net, false) : null; }
-        return SchSel.Comp(bc.Ref);
+        return bc == null ? null : SchSel.Comp(bc.Ref);
     }
 
+    /// <summary>Alt / Ctrl click: always the net a plain click takes at that point; only where a plain click finds no
+    /// net (it would take the part) the nearest pin's net; else the part, as a plain click. 2.9.5: pins and junctions
+    /// were weighed together with the wires, so in a tight column of pins and wires (a connector) a pin or junction of
+    /// the row above or below could beat the wire a plain click took.</summary>
     public SchSel HitNet(double wx, double wy)
     {
         var sh = Sheet; if (sh == null) return null;
-        double tol = 7 / _s, bd = tol; string best = null;
-        void Cand(double d, string n) { if (n != null && d < bd) { bd = d; best = n; } }
-        foreach (var w in sh.Wires) if (w.Kind == WireKind.Wire) Cand(SegDist(w.X1, w.Y1, w.X2, w.Y2, wx, wy), w.Net);
-        foreach (var j in sh.Junctions) Cand(Math.Sqrt((j.X - wx) * (j.X - wx) + (j.Y - wy) * (j.Y - wy)), j.Net);
-        foreach (var c in sh.Comps) { if (c.Power || c.Virtual) continue; foreach (var p in c.Pins) { if (p.Net == null || p.Hidden) continue; Cand(SegDist(p.X, p.Y, p.Ex, p.Ey, wx, wy), p.Net); } }
-        if (best != null) return SchSel.NetSel(best, true);
-        foreach (var l in sh.Labels)
-        {
-            if (l.Net == null || l.SkipDraw) continue;
-            var bb = SchRenderer.LabelGeom(l, FontScale).BB;
-            if (wx >= bb[0] - tol && wx <= bb[2] + tol && wy >= bb[1] - tol && wy <= bb[3] + tol) return SchSel.NetSel(l.Net, true);
-        }
-        foreach (var c in sh.Comps)
-        {
-            if (!(c.Power || c.Virtual)) continue; var b = c.BBox; double pad = tol + 1;
-            if (wx >= b[0] - pad && wx <= b[2] + pad && wy >= b[1] - pad && wy <= b[3] + pad) { var p = c.Pins.FirstOrDefault(q => q.Net != null); if (p != null) return SchSel.NetSel(p.Net, true); }
-        }
+        if ((NetNear(sh, wx, wy).Net ?? PinNear(sh, wx, wy)) is { } n) return SchSel.NetSel(n, true);
         var h = HitTest(wx, wy); return h is { IsNet: false } ? h : null;
+    }
+
+    /// <summary>Tests: at scale s (px per unit), clicks (plain and Alt) inside every net label's text and on every
+    /// wire and counts those that pick another net than the one under the pointer; and around wires, labels, pin ends
+    /// and power ports counts the points where a plain click takes a net and Alt another (must be none).</summary>
+    public object HitScan(double s)
+    {
+        var sh = Sheet; if (sh == null) return null;
+        double keep = _s; _s = s;
+        try
+        {
+            int lp = 0, lPlain = 0, lAlt = 0, wp = 0, wPlain = 0, wAlt = 0, near = 0, apart = 0; var ex = new List<string>();
+            void Probe(double x, double y, string net, string what, ref int n, ref int bp, ref int ba)
+            {
+                n++;
+                var a = HitTest(x, y); var b = HitNet(x, y);
+                if (a?.Net != net) bp++;
+                if (b?.Net != net) { ba++; if (ex.Count < 12) ex.Add($"{what} {net} @{x:0.##},{y:0.##}: plain {a?.Net ?? a?.Ref ?? "-"}, alt {b?.Net ?? b?.Ref ?? "-"}"); }
+            }
+            void Near(double x, double y)
+            {
+                near++;
+                var a = HitTest(x, y);
+                if (a is { IsNet: true } && HitNet(x, y)?.Net is var bn && bn != a.Net) { apart++; if (ex.Count < 12) ex.Add($"apart @{x:0.##},{y:0.##}: plain {a.Net}, alt {bn}"); }
+            }
+            foreach (var l in sh.Labels)
+            {
+                if (l.Net == null || l.SkipDraw) continue;
+                var bb = SchRenderer.LabelGeom(l, FontScale).BB;
+                for (int i = 1; i <= 5; i++) for (int j = 1; j <= 3; j++)
+                        Probe(bb[0] + (bb[2] - bb[0]) * i / 6, bb[1] + (bb[3] - bb[1]) * j / 4, l.Net, "label", ref lp, ref lPlain, ref lAlt);
+            }
+            foreach (var w in sh.Wires)
+            {
+                if (w.Kind != WireKind.Wire || w.Net == null) continue;
+                foreach (var t in new[] { 0.25, 0.5, 0.75 }) Probe(w.X1 + (w.X2 - w.X1) * t, w.Y1 + (w.Y2 - w.Y1) * t, w.Net, "wire", ref wp, ref wPlain, ref wAlt);
+            }
+            double px = 1 / _s, m = 5 * px;
+            foreach (var w in sh.Wires)
+            {
+                if (w.Kind != WireKind.Wire || w.Net == null) continue;
+                double dx = w.X2 - w.X1, dy = w.Y2 - w.Y1, len = Math.Sqrt(dx * dx + dy * dy); if (len < 1e-9) continue;
+                double nx = -dy / len, ny = dx / len;
+                foreach (var t in new[] { 0.0, 0.5, 1.0 }) foreach (var o in new[] { -4, -2, 2, 4 }) Near(w.X1 + dx * t + nx * o * px, w.Y1 + dy * t + ny * o * px);
+            }
+            foreach (var l in sh.Labels)
+            {
+                if (l.Net == null || l.SkipDraw) continue;
+                var bb = SchRenderer.LabelGeom(l, FontScale).BB;
+                for (int i = 0; i <= 4; i++) for (int j = 0; j <= 4; j++) Near(bb[0] - m + (bb[2] - bb[0] + 2 * m) * i / 4, bb[1] - m + (bb[3] - bb[1] + 2 * m) * j / 4);
+            }
+            foreach (var c in sh.Comps)
+            {
+                if (c.Power || c.Virtual) { var b = c.BBox; for (int i = 0; i <= 2; i++) for (int j = 0; j <= 2; j++) Near(b[0] - m + (b[2] - b[0] + 2 * m) * i / 2, b[1] - m + (b[3] - b[1] + 2 * m) * j / 2); continue; }
+                foreach (var p in c.Pins) for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) Near(p.X + i * 4 * px, p.Y + j * 4 * px);
+            }
+            return new { scale = s, labelPts = lp, labelPlainOff = lPlain, labelAltOff = lAlt, wirePts = wp, wirePlainOff = wPlain, wireAltOff = wAlt, nearPts = near, altApart = apart, examples = ex };
+        }
+        finally { _s = keep; }
     }
 
     // ---------- input ----------

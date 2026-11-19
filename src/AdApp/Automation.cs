@@ -155,6 +155,14 @@ static class Automation
                     var doc = w.DocsOpen.Keys.FirstOrDefault(d => d.Name.Equals(q["doc"], StringComparison.OrdinalIgnoreCase));
                     return w.ViewOf(doc) is SchView sv ? JsonSerializer.Serialize(sv.Doc.Sch.PartMap.Where(kv => kv.Value.Sheets.Contains(sv.SheetIndex)).Select(kv => kv.Key).Take(40)) : "[]";
                 }
+            case "/hitscan":   // every open schematic: plain vs Alt clicks on labels and wires at the scales s=a,b,...
+                {
+                    var scales = (q["s"] ?? "3,6,10").Split(',').Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+                    var res = new List<object>();
+                    foreach (var d in w.DocsOpen.Keys.ToList())
+                        if (w.ViewOf(d) is SchView sv) res.Add(new { doc = d.Name, runs = scales.Select(sv.HitScan).ToList() });
+                    return JsonSerializer.Serialize(res);
+                }
             case "/open": _ = w.Open(new[] { q["path"] }, q["expand"] == "1"); return "{\"ok\":true}";
             case "/do":
                 switch (q["cmd"])
